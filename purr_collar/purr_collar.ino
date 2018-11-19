@@ -1,7 +1,9 @@
 // Cat Purr Detecting Collar
 // Copyright 2013 Tony DiCola (tony@tonydicola.com)
 
-// This code is meant to run on a Teensy 3.0 microcontroller which is hooked up to
+// Modified for SAMD21 and SAMD51 for Andres Sabas @ Electronic Cats
+
+// This code is meant to run on a SAMD21 microcontroller which is hooked up to
 // a microphone (such as http://www.adafruit.com/products/1063) and 4 neo pixels
 // (from http://www.adafruit.com/products/1260).  The pins for these inputs & outputs
 // can be adjusted in the configuration variables below.
@@ -10,8 +12,11 @@
 // tries to detect a configured number of significant pulses at a certain frequency 
 // within a short window of time.  Four or more pulses at 100hz works within ~5 seconds
 // is the current configuration below, but it is still quite susceptible to noise.
-
-#define ARM_MATH_CM4
+#if defined(__SAMD51__)
+  #define ARM_MATH_CM4
+#else
+  #define ARM_MATH_CM0PLUS
+#endif
 #include <arm_math.h>
 #include <Adafruit_NeoPixel.h>
 
