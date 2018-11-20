@@ -3,7 +3,7 @@
 
 // Modified for SAMD21 and SAMD51 for Andres Sabas @ Electronic Cats
 
-// This code is meant to run on a SAMD21 microcontroller which is hooked up to
+// This code is meant to run on a SAMD microcontroller which is hooked up to
 // a microphone (such as http://www.adafruit.com/products/1063) and 4 neo pixels
 // (from http://www.adafruit.com/products/1260).  The pins for these inputs & outputs
 // can be adjusted in the configuration variables below.
@@ -19,6 +19,7 @@
 #endif
 #include <arm_math.h>
 #include <Adafruit_NeoPixel.h>
+#include <ZeroTimer.h>
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +58,6 @@ float PIXEL_FREQ_HZ = 1.5;             // How often the pixel pulse cycles per s
 // These shouldn't be modified unless you know what you're doing.
 ////////////////////////////////////////////////////////////////////////////////
 
-IntervalTimer samplingTimer;
 float samples[FFT_SIZE*2];
 float magnitudes[FFT_SIZE];
 int sampleCounter = 0;
@@ -75,12 +75,12 @@ char commandBuffer[MAX_CHARS];
 
 void setup() {
   // Set up serial port.
-  Serial.begin(38400);
+  SerialUSB.begin(38400);
   
   // Set up ADC and audio input.
   pinMode(AUDIO_INPUT_PIN, INPUT);
   analogReadResolution(ANALOG_READ_RESOLUTION);
-  analogReadAveraging(ANALOG_READ_AVERAGING);
+//  analogReadAveraging(ANALOG_READ_AVERAGING);
   
   // Turn on the power indicator LED.
   pinMode(POWER_LED_PIN, OUTPUT);
@@ -114,9 +114,9 @@ void loop() {
     
     // Output magnitudes in debug mode.
     if (debugMode) {
-      Serial.println("MAGNITUDES");
+      SerialUSB.println("MAGNITUDES");
       for (int i = 0; i < FFT_SIZE; ++i) {
-        Serial.println(magnitudes[i]);
+        SerialUSB.println(magnitudes[i]);
       }
     }
     
@@ -214,14 +214,16 @@ void samplingCallback() {
   // Update sample buffer position and stop after the buffer is filled
   sampleCounter += 2;
   if (sampleCounter >= FFT_SIZE*2) {
-    samplingTimer.end();
+    //samplingTimer.end();
+    TC.disable();
   }
 }
 
 void samplingBegin() {
   // Reset sample buffer position and start callback at necessary rate.
   sampleCounter = 0;
-  samplingTimer.begin(samplingCallback, 1000000/SAMPLE_RATE_HZ);
+  //samplingTimer.begin(samplingCallback, 1000000/SAMPLE_RATE_HZ);
+  TC.startTimer(1000000/SAMPLE_RATE_HZ, samplingCallback);
 }
 
 boolean samplingIsFull() {
@@ -252,8 +254,8 @@ boolean samplingIsFull() {
 
 void parserLoop() {
   // Process any incoming characters from the serial port
-  while (Serial.available() > 0) {
-    char c = Serial.read();
+  while (SerialUSB.available() > 0) {
+    char c = SerialUSB.read();
     // Add any characters that aren't the end of a command (semicolon) to the input buffer.
     if (c != ';') {
       c = toupper(c);
@@ -272,11 +274,11 @@ void parserLoop() {
 // Macro used in parseCommand function to simplify parsing get and set commands for a variable
 #define GET_AND_SET(variableName) \
   else if (strcmp(command, "GET " #variableName) == 0) { \
-    Serial.println(variableName); \
+    SerialUSB.println(variableName); \
   } \
   else if (strstr(command, "SET " #variableName " ") != NULL) { \
     variableName = (typeof(variableName)) atof(command+(sizeof("SET " #variableName " ")-1)); \
-    Serial.println(variableName); \
+    SerialUSB.println(variableName); \
   }
 
 void parseCommand(char* command) {
@@ -288,7 +290,7 @@ void parseCommand(char* command) {
   }
   else if (strcmp(command, "GET FFT_SIZE") == 0) {
     // Only allow reading FFT_SIZE
-    Serial.println(FFT_SIZE);
+    SerialUSB.println(FFT_SIZE);
   }
   // Handlers for variables that can be read and written at run time.
   GET_AND_SET(SAMPLE_RATE_HZ)
